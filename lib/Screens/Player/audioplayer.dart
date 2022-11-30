@@ -1152,15 +1152,45 @@ abstract class AudioPlayerHandler implements AudioHandler {
 class NowPlayingStream extends StatelessWidget {
   final AudioPlayerHandler audioHandler;
   final ScrollController? scrollController;
+  final PanelController? panelController;
   final bool head;
   final double headHeight;
 
   const NowPlayingStream({
     required this.audioHandler,
     this.scrollController,
+    this.panelController,
     this.head = false,
     this.headHeight = 50,
   });
+
+  void _updateScrollController(
+    ScrollController? controller,
+    int itemIndex,
+    int queuePosition,
+    int queueLength,
+  ) {
+    if (panelController != null && !panelController!.isPanelOpen) {
+      if (queuePosition > 3) {
+        controller?.animateTo(
+          itemIndex * 72 + 12,
+          curve: Curves.linear,
+          duration: const Duration(
+            milliseconds: 350,
+          ),
+        );
+      } else if (queuePosition < 4 && queueLength > 4) {
+        controller?.animateTo(
+          (queueLength - 4) * 72 + 12,
+          curve: Curves.linear,
+          duration: const Duration(
+            milliseconds: 350,
+          ),
+        );
+      }
+    }
+    return;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1169,6 +1199,16 @@ class NowPlayingStream extends StatelessWidget {
       builder: (context, snapshot) {
         final queueState = snapshot.data ?? QueueState.empty;
         final queue = queueState.queue;
+        final int queueStateIndex = queueState.queueIndex ?? 0;
+        final num queuePosition = queue.length - queueStateIndex;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _updateScrollController(
+            scrollController,
+            queueState.queueIndex ?? 0,
+            queuePosition.toInt(),
+            queue.length,
+          ),
+        );
 
         return ReorderableListView.builder(
           header: SizedBox(
@@ -1365,6 +1405,12 @@ class NowPlayingStream extends StatelessWidget {
                   ),
                   onTap: () {
                     audioHandler.skipToQueueItem(index);
+                    _updateScrollController(
+                      scrollController,
+                      queueState.queueIndex ?? 0,
+                      queuePosition.toInt(),
+                      queue.length,
+                    );
                   },
                 ),
               ),
@@ -2154,6 +2200,7 @@ class NameNControls extends StatelessWidget {
                       headHeight: nowplayingBoxHeight,
                       audioHandler: audioHandler,
                       scrollController: scrollController,
+                      panelController: panelController,
                     ),
                   ),
                 ),
